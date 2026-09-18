@@ -1,5 +1,6 @@
 package com.systemdesignlab.platform.architecture;
 
+import com.tngtech.archunit.base.DescribedPredicate;
 import com.tngtech.archunit.core.domain.Dependency;
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.lang.ArchCondition;
@@ -11,6 +12,7 @@ import com.tngtech.archunit.library.dependencies.SlicesRuleDefinition;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static com.tngtech.archunit.core.domain.JavaClass.Predicates.resideInAnyPackage;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
@@ -107,19 +109,41 @@ public final class ModuleArchitectureRules {
     }
 
     /**
-     * Rule F &mdash; controller boundary: inbound REST adapters must not depend on outbound
-     * persistence adapters directly; they must go through application input ports/use cases.
-     * Written against the generic {@code ..adapter.in.rest..} / {@code ..adapter.out.persistence..}
-     * package patterns so it stays useful once real controllers are added in later work
-     * packages.
+     * Rule F &mdash; controller boundary: an inbound REST adapter must not bypass the module's
+     * input-port boundary. It may only depend on {@code ..port.in..} (its declared use-case
+     * contract), its own package, and approved framework/JDK/shared technical dependencies
+     * &mdash; never on an application service, domain model, or any outbound adapter directly.
+     *
+     * <p>Expressed as a positive allowlist ({@code onlyDependOnClassesThat}) rather than a
+     * growing blacklist of forbidden targets: a blacklist that only names
+     * {@code ..adapter.out.persistence..} (as an earlier version of this rule did) misses
+     * {@code ..application..}, {@code ..domain..}, and other {@code ..adapter.out..} adapters
+     * (for example a messaging adapter) entirely. The allowlist enforces the actual boundary
+     * &mdash; "may only reach application code through {@code port.in}" &mdash; directly, and
+     * stays useful once real controllers are added in later work packages.
      */
     public static ArchRule controllerBoundary() {
-        return noClasses()
+        DescribedPredicate<JavaClass> allowedForInboundRestAdapters = resideInAnyPackage(
+                "..adapter.in.rest..",
+                "..port.in..",
+                "java..",
+                "javax..",
+                "jakarta..",
+                "org.springframework..",
+                "com.systemdesignlab.platform.shared..")
+                .as("its own REST adapter package, an input port, or an approved "
+                        + "framework/JDK/shared technical package");
+
+        return classes()
                 .that().resideInAPackage("..adapter.in.rest..")
-                .should().dependOnClassesThat().resideInAPackage("..adapter.out.persistence..")
-                .as("classes residing in '..adapter.in.rest..' must not depend on '..adapter.out.persistence..'")
-                .because("REST controllers must interact with application input ports/use cases, not "
-                        + "repositories, directly");
+                .should().onlyDependOnClassesThat(allowedForInboundRestAdapters)
+                .as("classes residing in '..adapter.in.rest..' must only depend on '..port.in..' "
+                        + "(plus their own package and approved framework/JDK/shared technical "
+                        + "dependencies)")
+                .because("an inbound REST adapter must invoke application functionality through the "
+                        + "module's input-port/use-case contract, not by bypassing it to reach "
+                        + "application, domain, or outbound adapter implementations directly "
+                        + "(ADR-003 Hexagonal Architecture)");
     }
 
     private static ArchCondition<JavaClass> onlyDependOnOwnModulePersistence(Pattern modulePattern) {

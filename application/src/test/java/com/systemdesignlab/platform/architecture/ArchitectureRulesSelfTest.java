@@ -5,6 +5,7 @@ import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.lang.ArchRule;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
@@ -58,7 +59,38 @@ class ArchitectureRulesSelfTest {
     void controllerBoundaryRuleDetectsRestAdapterDependingOnPersistenceAdapter() {
         assertViolationDetected(
                 ModuleArchitectureRules.controllerBoundary(),
-                "com.systemdesignlab.archunitfixtures.controllerboundary");
+                "com.systemdesignlab.archunitfixtures.controllerboundary.persistenceviolation");
+    }
+
+    @Test
+    void controllerBoundaryRuleDetectsRestAdapterDependingOnApplicationImplementation() {
+        assertViolationDetected(
+                ModuleArchitectureRules.controllerBoundary(),
+                "com.systemdesignlab.archunitfixtures.controllerboundary.applicationviolation");
+    }
+
+    @Test
+    void controllerBoundaryRuleDetectsRestAdapterDependingOnDomainImplementation() {
+        assertViolationDetected(
+                ModuleArchitectureRules.controllerBoundary(),
+                "com.systemdesignlab.archunitfixtures.controllerboundary.domainviolation");
+    }
+
+    @Test
+    void controllerBoundaryRuleDetectsRestAdapterDependingOnOtherOutboundAdapter() {
+        // Not persistence specifically: proves the allowlist-based rule rejects any
+        // ..adapter.out.. dependency, matching the "adapter.in.rest -> adapter.out.*" case.
+        assertViolationDetected(
+                ModuleArchitectureRules.controllerBoundary(),
+                "com.systemdesignlab.archunitfixtures.controllerboundary.outboundadapterviolation");
+    }
+
+    @Test
+    void controllerBoundaryRuleAllowsRestAdapterDependingOnlyOnInputPort() {
+        JavaClasses validClasses = new ClassFileImporter()
+                .importPackages("com.systemdesignlab.archunitfixtures.controllerboundary.validcase");
+        assertDoesNotThrow(() -> ModuleArchitectureRules.controllerBoundary().check(validClasses),
+                "expected the valid REST -> port.in shape to pass the controller-boundary rule");
     }
 
     private static void assertViolationDetected(ArchRule rule, String fixturePackage) {
