@@ -1,0 +1,9 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+*.iml
+.vscode/
+
+# Original locked docx pending manual cleanup (see docs/architecture/ for the tracked copy)
+/System_Design_Lab_Phase_1_Architecture.docx

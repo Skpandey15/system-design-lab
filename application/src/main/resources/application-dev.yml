@@ -1,0 +1,9 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/orderplatform
+    username: orderplatform
+    password: orderplatform
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
