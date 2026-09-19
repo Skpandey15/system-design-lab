@@ -93,6 +93,26 @@ class ArchitectureRulesSelfTest {
                 "expected the valid REST -> port.in shape to pass the controller-boundary rule");
     }
 
+    @Test
+    void sharedKernelFrameworkIndependenceRuleDetectsSpringDependency() {
+        assertViolationDetected(
+                ModuleArchitectureRules.sharedKernelFrameworkIndependence(),
+                "com.systemdesignlab.archunitfixtures.sharedkernelframeworkindependence");
+    }
+
+    @Test
+    void sharedKernelModuleIndependenceRuleDetectsBusinessModuleDependency() {
+        String basePackage = "com.systemdesignlab.archunitfixtures.sharedkernelmoduleindependence";
+        assertViolationDetected(ModuleArchitectureRules.sharedKernelModuleIndependence(basePackage), basePackage);
+    }
+
+    @Test
+    void noFloatingPointDomainMonetaryRepresentationRuleDetectsDoubleField() {
+        assertViolationDetected(
+                ModuleArchitectureRules.noFloatingPointDomainMonetaryRepresentation(),
+                "com.systemdesignlab.archunitfixtures.floatingpointmoney");
+    }
+
     private static void assertViolationDetected(ArchRule rule, String fixturePackage) {
         JavaClasses fixtureClasses = new ClassFileImporter().importPackages(fixturePackage);
         assertThrows(AssertionError.class, () -> rule.check(fixtureClasses),
