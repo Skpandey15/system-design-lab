@@ -4,6 +4,4 @@ spring:
     username: orderplatform
     password: orderplatform
   jpa:
-    hibernate:
-      ddl-auto: none
     open-in-view: false

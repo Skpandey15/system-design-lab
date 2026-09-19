@@ -1,6 +1,15 @@
 spring:
   application:
     name: order-platform
+  jpa:
+    hibernate:
+      # Flyway is the sole authoritative schema-evolution mechanism (ADR-009). Hibernate
+      # must never create or modify schema in any profile, including tests.
+      ddl-auto: none
+  flyway:
+    # database/migrations is the source of truth (see build.gradle processResources);
+    # this is Spring Boot's default location and is set explicitly for documentation.
+    locations: classpath:db/migration
 
 management:
   endpoints:

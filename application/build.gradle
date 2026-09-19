@@ -23,6 +23,8 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+	implementation 'org.springframework.boot:spring-boot-starter-flyway'
+	implementation 'org.flywaydb:flyway-database-postgresql'
 	runtimeOnly 'org.postgresql:postgresql'
 	testImplementation 'org.springframework.boot:spring-boot-starter-actuator-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
@@ -37,4 +39,15 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+}
+
+// WP-02: `database/migrations` (not `src/main/resources/db/migration`) is the single
+// source of truth for Flyway migrations (Architecture v1.2 §13, README). Copy it into
+// the classpath location Flyway scans by Spring Boot default (`classpath:db/migration`)
+// at build time, so the physical file layout stays decoupled from the module while
+// Flyway's convention-based lookup keeps working unmodified, including from a packaged jar.
+tasks.named('processResources') {
+	from('../database/migrations') {
+		into 'db/migration'
+	}
 }
