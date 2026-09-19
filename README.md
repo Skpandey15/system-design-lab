@@ -51,6 +51,33 @@ cd application
 ./gradlew test
 ```
 
+## Database foundation (WP-02)
+
+Flyway is the sole authoritative mechanism for schema evolution (ADR-009); Hibernate/JPA
+never creates or modifies schema (`spring.jpa.hibernate.ddl-auto=none` in every profile).
+
+- **Migrations** live in [`database/migrations`](database/migrations), versioned
+  (`V001__...`, `V002__...`). Gradle's `processResources` task copies them into the
+  classpath at build time so Flyway's default `classpath:db/migration` location finds
+  them without moving the canonical files into the application module.
+- **Module schemas**: `customer`, `catalog`, `cart`, `ordering`, `inventory`, `payment`
+  — one per bounded context (ADR-018). The Order module's schema is named `ordering`,
+  not `order`, solely to avoid the `ORDER` SQL reserved-keyword collision; this is a
+  disclosed naming deviation from the literal text of ADR-018 / Architecture v1.2 §6a,
+  not a change to the isolation model itself.
+- **Role/ownership model**: each module has its own least-privilege PostgreSQL login
+  role, granted `USAGE, CREATE` on its own schema only (`V002__create_module_roles_and_grants.sql`).
+  Cross-schema access is denied at the database level. As of WP-02 no persistence
+  adapter exists yet, so the running application still connects with a single
+  migration/admin credential; per-module runtime connection routing is deferred to the
+  work package that introduces each module's first persistence adapter. See
+  `ModuleSchemaIsolationTest` for exactly what this does and does not guarantee.
+- **Testing**: `DatabaseMigrationTest` and `ModuleSchemaIsolationTest` under
+  `com.systemdesignlab.platform.database` use Testcontainers PostgreSQL (never H2) to
+  prove migration-from-zero and schema-level grant isolation against a real database.
+
 ## Current status
 
-Work package **WP-00 (Repository & engineering baseline)** — see `docs/implementation`. Architecture skeleton, module boundaries and fitness tests land in WP-01.
+Work package **WP-02 (Database foundation)** — see `docs/implementation`. Architecture
+skeleton, module boundaries and fitness tests landed in WP-01; repository/engineering
+baseline landed in WP-00.
