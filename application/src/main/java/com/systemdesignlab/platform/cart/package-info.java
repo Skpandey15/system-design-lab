@@ -12,6 +12,6 @@
  *
  * <p>Other bounded contexts must not depend on this module's {@code adapter.out.persistence}
  * classes; cross-module collaboration goes through {@code port.out} contracts only.
- * See Architecture v1.2 &sect;6-7 and ADR-001, ADR-002, ADR-003, ADR-018.
+ * See Architecture v1.3 &sect;6-7 and ADR-001, ADR-002, ADR-003, ADR-018.
  */
 package com.systemdesignlab.platform.cart;
