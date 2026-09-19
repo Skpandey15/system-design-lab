@@ -8,8 +8,8 @@ Phase 1 deliberately excludes Kafka, Redis, microservices, Kubernetes, Saga, CQR
 
 ```
 docs/
-  architecture/     Phase-1 HLD/LLD (current: v1.2)
-  adr/               ADR-001..022 (current: v1.1)
+  architecture/     Phase-1 HLD/LLD (current: v1.3)
+  adr/               ADR-001..023 (current: v1.2)
   implementation/    Work-package delivery plan (current: v1.0)
 application/         Spring Boot / Gradle application (Java 21+)
 database/migrations/ Flyway migrations, one file set per module schema
