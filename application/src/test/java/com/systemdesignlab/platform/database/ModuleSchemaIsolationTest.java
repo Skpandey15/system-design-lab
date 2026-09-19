@@ -1,16 +1,22 @@
 package com.systemdesignlab.platform.database;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import javax.sql.DataSource;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -56,6 +62,30 @@ class ModuleSchemaIsolationTest {
         try (Connection adminConnection = dataSource.getConnection()) {
             jdbcUrl = adminConnection.getMetaData().getURL();
         }
+    }
+
+    @Test
+    void moduleDatabaseRoleRegistryMatchesProvisionedRoles() throws SQLException {
+        // ModuleDatabaseRole duplicates V002's role names by necessity (Flyway migrations
+        // are static SQL; this enum is compile-time Java). This test is the drift guard:
+        // if a role is renamed/added/removed in the migration without updating the enum
+        // (or vice versa), it fails here with a clear diff instead of the isolation tests
+        // above failing confusingly with authentication or "role does not exist" errors.
+        Set<String> expectedUsernames = Stream.of(ModuleDatabaseRole.values())
+                .map(role -> role.username)
+                .collect(Collectors.toSet());
+
+        Set<String> provisionedAppRoles = new HashSet<>();
+        try (Connection connection = dataSource.getConnection();
+                Statement statement = connection.createStatement();
+                ResultSet resultSet = statement.executeQuery(
+                        "SELECT rolname FROM pg_catalog.pg_roles WHERE rolname LIKE '%\\_app' ESCAPE '\\'")) {
+            while (resultSet.next()) {
+                provisionedAppRoles.add(resultSet.getString(1));
+            }
+        }
+
+        assertThat(provisionedAppRoles).containsExactlyInAnyOrderElementsOf(expectedUsernames);
     }
 
     @ParameterizedTest(name = "{0} role can create, use and drop a table inside its own schema")

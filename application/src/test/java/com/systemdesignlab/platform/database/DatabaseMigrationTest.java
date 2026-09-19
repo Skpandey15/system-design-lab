@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import javax.sql.DataSource;
 
@@ -57,8 +58,15 @@ class DatabaseMigrationTest {
         List<String> allSchemas =
                 jdbcTemplate.queryForList("SELECT schema_name FROM information_schema.schemata", String.class);
 
-        assertThat(allSchemas).containsAll(EXPECTED_MODULE_SCHEMAS);
-        // "order" (unquoted) is a reserved keyword; confirm it was deliberately not used.
-        assertThat(allSchemas).doesNotContain("order");
+        // Excludes PostgreSQL's own built-in schemas so this actually proves "exactly the
+        // six module schemas", not just "at least the six module schemas" -- a stray extra
+        // schema from a bad migration would otherwise pass silently.
+        Set<String> applicationSchemas = allSchemas.stream()
+                .filter(schema -> !schema.equals("public"))
+                .filter(schema -> !schema.equals("information_schema"))
+                .filter(schema -> !schema.startsWith("pg_"))
+                .collect(Collectors.toSet());
+
+        assertThat(applicationSchemas).containsExactlyInAnyOrderElementsOf(EXPECTED_MODULE_SCHEMAS);
     }
 }
