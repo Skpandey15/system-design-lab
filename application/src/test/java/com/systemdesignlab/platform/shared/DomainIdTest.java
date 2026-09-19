@@ -56,6 +56,21 @@ class DomainIdTest {
     }
 
     @Test
+    void acceptsCanonicalUppercaseUuidString() {
+        UUID uuid = UUID.randomUUID();
+
+        DomainId id = DomainId.of(uuid.toString().toUpperCase());
+
+        assertThat(id.value()).isEqualTo(uuid);
+    }
+
+    @Test
+    void rejectsShortenedNonCanonicalUuidString() {
+        // UUID.fromString alone accepts shortened hex groups like this; DomainId must not.
+        assertThatThrownBy(() -> DomainId.of("1-1-1-1-1")).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     void equalWhenBackingUuidIsEqual() {
         UUID uuid = UUID.randomUUID();
 

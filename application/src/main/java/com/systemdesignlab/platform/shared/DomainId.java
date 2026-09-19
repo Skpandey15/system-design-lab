@@ -36,14 +36,28 @@ public final class DomainId {
         return new DomainId(value);
     }
 
-    /** Parses a canonical UUID string representation. */
+    /**
+     * Parses a canonical UUID string representation (for example
+     * {@code "123e4567-e89b-12d3-a456-426614174000"}, case-insensitively).
+     *
+     * <p>{@link UUID#fromString(String)} alone is not a strict-enough canonical-form check: it
+     * also accepts shortened/non-canonical hex groups (for example {@code "1-1-1-1-1"}). This
+     * method additionally re-renders the parsed value and rejects the input unless it is
+     * case-insensitively identical to that canonical form, so only genuinely canonical UUID
+     * strings are accepted.
+     */
     public static DomainId of(String value) {
         Objects.requireNonNull(value, "value must not be null");
+        UUID parsed;
         try {
-            return new DomainId(UUID.fromString(value));
+            parsed = UUID.fromString(value);
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("not a valid identifier: " + value, e);
         }
+        if (!parsed.toString().equalsIgnoreCase(value)) {
+            throw new IllegalArgumentException("not a valid identifier: " + value);
+        }
+        return new DomainId(parsed);
     }
 
     public UUID value() {
