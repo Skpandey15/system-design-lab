@@ -39,4 +39,16 @@ class ModularMonolithArchitectureTest {
     @ArchTest
     static final ArchRule rest_adapters_must_not_depend_on_persistence_adapters =
             ModuleArchitectureRules.controllerBoundary();
+
+    @ArchTest
+    static final ArchRule shared_kernel_must_be_framework_independent =
+            ModuleArchitectureRules.sharedKernelFrameworkIndependence();
+
+    @ArchTest
+    static final ArchRule shared_kernel_must_not_depend_on_business_modules =
+            ModuleArchitectureRules.sharedKernelModuleIndependence("com.systemdesignlab.platform");
+
+    @ArchTest
+    static final ArchRule domain_state_must_not_use_floating_point_money =
+            ModuleArchitectureRules.noFloatingPointDomainMonetaryRepresentation();
 }

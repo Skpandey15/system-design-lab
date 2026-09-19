@@ -15,6 +15,7 @@ import java.util.regex.Pattern;
 import static com.tngtech.archunit.core.domain.JavaClass.Predicates.resideInAnyPackage;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noFields;
 
 /**
  * Reusable architecture fitness rules for the Phase-1 modular monolith (ADR-001, ADR-002,
@@ -144,6 +145,80 @@ public final class ModuleArchitectureRules {
                         + "module's input-port/use-case contract, not by bypassing it to reach "
                         + "application, domain, or outbound adapter implementations directly "
                         + "(ADR-003 Hexagonal Architecture)");
+    }
+
+    /**
+     * Rule G &mdash; shared-kernel framework independence: classes residing in the shared kernel
+     * ({@code ..shared..}) must not depend on Spring, JPA, or any adapter, exactly like the
+     * domain layer (Rule A). WP-03 primitives (Money, DomainId, CorrelationId, DomainException)
+     * must stay framework- and infrastructure-independent so every bounded context can safely
+     * depend on them.
+     */
+    public static ArchRule sharedKernelFrameworkIndependence() {
+        return noClasses()
+                .that().resideInAPackage("..shared..")
+                .should().dependOnClassesThat().resideInAnyPackage(
+                        "org.springframework..",
+                        "jakarta.persistence..",
+                        "..adapter..")
+                .as("classes residing in '..shared..' must not depend on Spring, JPA, or adapters")
+                .because("shared domain primitives must remain framework- and infrastructure-"
+                        + "independent so every bounded context can safely depend on them (WP-03)");
+    }
+
+    /**
+     * Rule H &mdash; shared-kernel module independence: no class under {@code basePackage}'s
+     * {@code shared} package may depend on any sibling top-level module package. Mirrors Rule D's
+     * parameterized, regex-based module detection so it can be proven against a synthetic fixture
+     * tree, the same way Rule D is.
+     */
+    public static ArchRule sharedKernelModuleIndependence(String basePackage) {
+        Pattern modulePattern = Pattern.compile(Pattern.quote(basePackage) + "\\.([^.]+)(\\..*)?");
+        return classes()
+                .that().resideInAPackage(basePackage + ".shared..")
+                .should(onlyDependOnNonBusinessModules(modulePattern))
+                .as("classes under '" + basePackage + ".shared..' must not depend on any sibling "
+                        + "business module")
+                .because("shared domain primitives must not depend back on business modules, or "
+                        + "the shared kernel becomes coupled to one bounded context (WP-03)");
+    }
+
+    /**
+     * Rule I &mdash; no floating-point domain monetary representation: no field in the domain,
+     * application, or shared-kernel layers may be declared {@code double}/{@code float}/
+     * {@code Double}/{@code Float} (ADR-014: "Do not use float/double for authoritative money.").
+     * Scoped to those layers (not adapters) to protect authoritative domain state specifically,
+     * avoiding false positives in unrelated infrastructure code.
+     */
+    public static ArchRule noFloatingPointDomainMonetaryRepresentation() {
+        return noFields()
+                .that().areDeclaredInClassesThat().resideInAnyPackage("..domain..", "..application..", "..shared..")
+                .should().haveRawType(double.class)
+                .orShould().haveRawType(float.class)
+                .orShould().haveRawType(Double.class)
+                .orShould().haveRawType(Float.class)
+                .as("no field in '..domain..', '..application..' or '..shared..' may be of type "
+                        + "double/float/Double/Float")
+                .because("float/double are never authoritative monetary representations (ADR-014); "
+                        + "Money.amount() is BigDecimal");
+    }
+
+    private static ArchCondition<JavaClass> onlyDependOnNonBusinessModules(Pattern modulePattern) {
+        return new ArchCondition<>("only depend on non-business-module classes") {
+            @Override
+            public void check(JavaClass javaClass, ConditionEvents events) {
+                for (Dependency dependency : javaClass.getDirectDependenciesFromSelf()) {
+                    JavaClass target = dependency.getTargetClass();
+                    String targetModule = moduleOf(target.getPackageName(), modulePattern);
+                    boolean dependsOnBusinessModule = targetModule != null && !targetModule.equals("shared");
+                    if (dependsOnBusinessModule) {
+                        events.add(SimpleConditionEvent.violated(dependency,
+                                dependency.getDescription() + " -- shared kernel must not depend on "
+                                        + "module '" + targetModule + "'"));
+                    }
+                }
+            }
+        };
     }
 
     private static ArchCondition<JavaClass> onlyDependOnOwnModulePersistence(Pattern modulePattern) {
